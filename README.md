@@ -17,3 +17,18 @@ d'invitation, langue de l'audience. Tourne sur GitHub Actions, sans machine allu
 ## Lancer a la main
 Onglet Actions → « Recap subs 21h » → Run workflow : `force` coche = poste tout de suite ;
 `day` = `AAAA-MM-JJ` pour la journee complete d'un jour passe.
+
+# Miroir d'un canal Telegram
+
+`miroir.py` garde un second canal identique au premier : profil (titre, description, photo,
+signatures, reactions), posts programmes recrees a la meme minute, et chaque post publie recopie
+dans les minutes qui suivent. Sans etat : les doubles se reconnaissent par date, type, texte et
+empreinte de la photo. Details et options dans l'en-tete du script.
+
+- `.github/workflows/miroir.yml` toutes les 5 minutes (`requirements-miroir.txt`).
+- Session Telegram dediee, distincte de celle du recap (jamais la meme session depuis deux IP).
+- Secrets : `TG_SESSION_MIROIR`, `MIROIR_SOURCE`, `MIROIR_CIBLE` (`id:access_hash`),
+  `MIROIR_DEPUIS` (date ISO de mise en miroir), plus `TG_API_ID` / `TG_API_HASH`.
+
+`.github/workflows/garder-actif.yml` pousse un commit vide chaque mois : GitHub coupe les
+workflows programmes d'un depot public reste 60 jours sans commit.
