@@ -484,7 +484,7 @@ async def copier_admins(c, src, dst) -> None:
     deja = {u.id async for u in c.iter_participants(dst, filter=types.ChannelParticipantsAdmins())}
     moi = (await c.get_me()).id
     async for u in c.iter_participants(src, filter=types.ChannelParticipantsAdmins()):
-        if u.id in deja or u.id == moi:
+        if u.id in deja or u.id == moi or u.deleted:
             continue
         p = u.participant
         droits = p.admin_rights
