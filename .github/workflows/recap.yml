@@ -35,7 +35,7 @@ jobs:
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          TG_SUBS_CHANNEL: ${{ vars.TG_SUBS_CHANNEL || 'la vie secrète' }}
+          TG_SUBS_CHANNEL: ${{ secrets.TG_SUBS_CHANNEL }}
           FORCE: ${{ inputs.force == true && '1' || '0' }}
           DAY: ${{ inputs.day }}
         run: |

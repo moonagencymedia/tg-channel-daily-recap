@@ -1,4 +1,4 @@
-"""Recap quotidien des subs du canal Telegram de Mei, poste dans Discord #sub a 21 h (Paris).
+"""Recap quotidien des abonnes d'un canal Telegram, poste dans un salon Discord a 21 h (Paris).
 
 Tourne chez GitHub Actions (.github/workflows/recap.yml), donc sans le Mac. Sans etat :
 tout est relu dans le journal d'administration du canal (Telegram le garde ~48 h).
@@ -9,7 +9,7 @@ tout est relu dans le journal d'administration du canal (Telegram le garde ~48 h
     python recap_subs.py --session-file sessions/echanges   # test local avec la session du Mac
 
 Variables : TG_API_ID, TG_API_HASH, TG_SESSION_STRING (ou --session-file), DISCORD_WEBHOOK_URL,
-TG_SUBS_CHANNEL (defaut « la vie secrète »), TZ_NAME (defaut Europe/Paris).
+TG_SUBS_CHANNEL (morceau du titre du canal), TZ_NAME (defaut Europe/Paris).
 """
 
 import argparse
@@ -29,7 +29,7 @@ from telethon.tl.functions.stats import GetBroadcastStatsRequest, LoadAsyncGraph
 from telethon.tl.types import ChannelAdminLogEventsFilter
 
 TZ = ZoneInfo(os.getenv("TZ_NAME", "Europe/Paris"))
-CHANNEL_HINT = os.getenv("TG_SUBS_CHANNEL", "la vie secrète")
+CHANNEL_HINT = os.environ["TG_SUBS_CHANNEL"]   # secret : morceau du titre du canal
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
 MOIS = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet",
         "aout", "septembre", "octobre", "novembre", "decembre"]
@@ -58,7 +58,7 @@ async def find_channel(c):
     async for d in c.iter_dialogs():
         if CHANNEL_HINT.lower() in (d.name or "").lower():
             return d.entity
-    raise SystemExit(f"Canal introuvable (TG_SUBS_CHANNEL={CHANNEL_HINT!r})")
+    raise SystemExit("Canal introuvable : verifie le secret TG_SUBS_CHANNEL.")
 
 
 async def fetch_events(c, chan, since_utc: datetime) -> list[tuple[datetime, str, str | None]]:
@@ -215,11 +215,12 @@ async def run(args) -> None:
         await c.disconnect()
 
     embed = build_embed(today, hier, day, now, full_day, langs, audience)
-    print(f"{len(events)} evenements lus depuis {since.astimezone(TZ):%d/%m %H:%M}")
+    print("Journal Telegram lu.")
     if args.dry_run:
         print(render_text(embed))
         return
-    print(f"Discord : message {post(embed)} poste ({today['joins']} entrees / {today['leaves']} departs).")
+    post(embed)
+    print("Recap poste dans Discord.")
 
 
 def main() -> None:
