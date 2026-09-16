@@ -55,10 +55,17 @@ def platform_of(title: str | None) -> str:
 # --------------------------------------------------------------------------- Telegram
 
 async def find_channel(c):
-    async for d in c.iter_dialogs():
-        if CHANNEL_HINT.lower() in (d.name or "").lower():
-            return d.entity
-    raise SystemExit("Canal introuvable : verifie le secret TG_SUBS_CHANNEL.")
+    """Le canal dont le titre contient le secret. Un canal miroir peut porter le meme titre :
+    a titre egal, on garde celui qui a le plus d'abonnes."""
+    from telethon.tl.functions.channels import GetFullChannelRequest
+    matches = [d.entity async for d in c.iter_dialogs()
+               if d.is_channel and CHANNEL_HINT.lower() in (d.name or "").lower()]
+    if not matches:
+        raise SystemExit("Canal introuvable : verifie le secret TG_SUBS_CHANNEL.")
+    if len(matches) == 1:
+        return matches[0]
+    sizes = [(await c(GetFullChannelRequest(ch))).full_chat.participants_count or 0 for ch in matches]
+    return max(zip(sizes, matches), key=lambda sm: sm[0])[1]
 
 
 async def fetch_events(c, chan, since_utc: datetime) -> list[tuple[datetime, str, str | None]]:
