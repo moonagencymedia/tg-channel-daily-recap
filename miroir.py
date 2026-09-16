@@ -20,7 +20,8 @@ ca marche aussi sur un canal a contenu protege.
 
 Variables : TG_API_ID, TG_API_HASH, TG_SESSION_MIROIR (ou --session-file), MIROIR_SOURCE et
 MIROIR_CIBLE (id du canal, -100..., ou id:access_hash), MIROIR_DEPUIS (date ISO, ex.
-2026-09-16T23:30:00+02:00). Journal neutre (des compteurs, jamais de texte) sauf --verbose.
+2026-09-16T23:30:00+02:00), MIROIR_PREFIXE_TITRE (optionnel : marque placee devant le titre du miroir
+pour qu'on ne confonde pas les deux canaux). Journal neutre (des compteurs, jamais de texte) sauf --verbose.
 """
 
 import argparse
@@ -360,9 +361,10 @@ async def profil(c, src, dst, full_src, full_dst) -> None:
     cs, cd = full_src.chats[0], full_dst.chats[0]
     fs, fd = full_src.full_chat, full_dst.full_chat
 
-    if cs.title != cd.title:
+    titre = os.getenv("MIROIR_PREFIXE_TITRE", "") + cs.title   # marque pour distinguer les deux canaux
+    if titre != cd.title:
         compte("profil")
-        await agir("titre", lambda: c(functions.channels.EditTitleRequest(dst, cs.title)))
+        await agir("titre", lambda: c(functions.channels.EditTitleRequest(dst, titre)))
     if (fs.about or "") != (fd.about or ""):
         compte("profil")
         await agir("description", lambda: c(functions.messages.EditChatAboutRequest(dst, fs.about or "")))

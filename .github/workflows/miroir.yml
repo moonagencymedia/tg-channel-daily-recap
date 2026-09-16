@@ -29,4 +29,5 @@ jobs:
           MIROIR_SOURCE: ${{ secrets.MIROIR_SOURCE }}
           MIROIR_CIBLE: ${{ secrets.MIROIR_CIBLE }}
           MIROIR_DEPUIS: ${{ secrets.MIROIR_DEPUIS }}
+          MIROIR_PREFIXE_TITRE: ${{ secrets.MIROIR_PREFIXE_TITRE }}
         run: python miroir.py
