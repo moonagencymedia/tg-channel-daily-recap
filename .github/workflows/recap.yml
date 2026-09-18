@@ -1,17 +1,20 @@
 name: Recap subs 21h
 
+# GitHub lance les crons avec un retard mesure de 0 a 3 h sur ce depot. On ne se fie donc jamais a
+# l'heure d'execution : plusieurs creneaux le soir, les chiffres sont toujours arretes a 21 h (Paris),
+# et un marqueur en cache garantit UNE seule publication par jour. Un creneau tombe apres minuit ->
+# le script rattrape la veille.
 on:
   schedule:
-    - cron: "0 19 * * *"   # 21 h Paris en heure d'ete (CEST)
-    - cron: "0 20 * * *"   # 21 h Paris en heure d'hiver (CET) — le script ignore l'autre
+    - cron: "7,37 19-23 * * *"
   workflow_dispatch:
     inputs:
       force:
-        description: "Poster tout de suite, sans attendre 21 h"
+        description: "Poster tout de suite un apercu a l'heure actuelle (ne compte pas comme recap du jour)"
         type: boolean
         default: true
       day:
-        description: "Journee complete d'un jour passe (YYYY-MM-DD), vide = aujourd'hui"
+        description: "Journee complete d'un jour passe (AAAA-MM-JJ), vide = aujourd'hui"
         type: string
         default: ""
 
@@ -25,18 +28,48 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Dates (heure de Paris)
+        id: d
+        run: |
+          echo "today=$(TZ=Europe/Paris date +%F)" >> "$GITHUB_OUTPUT"
+          echo "yesterday=$(TZ=Europe/Paris date -d 'yesterday' +%F)" >> "$GITHUB_OUTPUT"
+      - name: Recap du jour deja poste ?
+        id: mt
+        uses: actions/cache/restore@v4
+        with:
+          path: .recap-marker
+          key: recap-${{ steps.d.outputs.today }}
+          lookup-only: true
+      - name: Recap de la veille deja poste ?
+        id: my
+        uses: actions/cache/restore@v4
+        with:
+          path: .recap-marker
+          key: recap-${{ steps.d.outputs.yesterday }}
+          lookup-only: true
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - name: Recap
+        id: recap
         env:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TG_SUBS_CHANNEL: ${{ secrets.TG_SUBS_CHANNEL }}
+          DONE_TODAY: ${{ steps.mt.outputs.cache-hit }}
+          DONE_YESTERDAY: ${{ steps.my.outputs.cache-hit }}
           FORCE: ${{ inputs.force == true && '1' || '0' }}
           DAY: ${{ inputs.day }}
         run: |
           if [ -n "$DAY" ]; then python recap_subs.py --day "$DAY"; else python recap_subs.py; fi
+      - name: Marquer le jour comme fait
+        if: steps.recap.outputs.posted_day != ''
+        run: mkdir -p .recap-marker && date -u > .recap-marker/done
+      - uses: actions/cache/save@v4
+        if: steps.recap.outputs.posted_day != ''
+        with:
+          path: .recap-marker
+          key: recap-${{ steps.recap.outputs.posted_day }}
