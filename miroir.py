@@ -27,6 +27,7 @@ pour qu'on ne confonde pas les deux canaux). Journal neutre (des compteurs, jama
 import argparse
 import asyncio
 import io
+import json
 import os
 import random
 import sys
@@ -524,6 +525,30 @@ def session():
         device_model="miroir-cloud", system_version="GitHub Actions", app_version="1.0")
 
 
+def charger_liens() -> dict:
+    """liens_miroir.json : {"code du lien Dropp du canal principal": "code du lien du miroir"}.
+    Le miroir des pubs a ses propres liens Dropp : une vente sur l'un d'eux vient forcement des pubs."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "liens_miroir.json")) as f:
+            return {k: v for k, v in json.load(f).items() if k and v and not k.startswith("_")}
+    except (OSError, ValueError):
+        return {}
+
+
+def remplacer_liens(posts: list, liens: dict) -> None:
+    """Remplace dans les posts source (en memoire seulement) chaque lien du principal par celui du miroir,
+    dans le texte et dans les liens caches derriere un mot. Codes de meme longueur : la mise en forme
+    reste alignee ; sinon le texte visible n'est pas touche (seuls les liens caches le sont)."""
+    for post in posts:
+        for m in post.msgs:
+            for ancien, nouveau in liens.items():
+                if m.message and ancien in m.message and len(ancien) == len(nouveau):
+                    m.message = m.message.replace(ancien, nouveau)
+                for e in m.entities or []:
+                    if isinstance(e, types.MessageEntityTextUrl) and ancien in e.url:
+                        e.url = e.url.replace(ancien, nouveau)
+
+
 async def run() -> int:
     depuis = datetime.fromisoformat(os.environ["MIROIR_DEPUIS"]).astimezone(timezone.utc)
     sess, appareil = session()
@@ -550,6 +575,9 @@ async def run() -> int:
         borne = max(depuis, maintenant - timedelta(days=7))
         pub_src = await publies(c, src, borne)
         pub_dst = await publies(c, dst, borne - timedelta(days=1))
+        liens = charger_liens()
+        if liens:
+            remplacer_liens(prog_src + pub_src, liens)
 
         await profil(c, src, dst, full_src, full_dst)
         if args.admins:
