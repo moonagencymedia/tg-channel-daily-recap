@@ -41,6 +41,9 @@ from telethon.sessions import SQLiteSession, StringSession
 
 MAX_PUBLIES = 10                         # garde-fou : jamais plus de 10 posts publies par passage
 TOLERANCE = timedelta(seconds=90)        # un post programme sort a quelques secondes pres
+# Un post programme dont la photo a ete remplacee sort en retard (vu : 4-5 min les 19 et 21/10) alors que
+# sa copie sort a l'heure : meme texte, meme type, a quelques minutes pres dans un sens ou dans l'autre.
+RETARD_SOURCE = timedelta(minutes=15)
 SEUIL_PHOTO = 6                          # bits differents sur 64 (mesure : copie 0-1, photos distinctes >= 13)
 ORPHELIN_MARGE = timedelta(minutes=10)   # on ne retire jamais un post programme qui va sortir
 
@@ -453,6 +456,7 @@ async def sync_publies(c, dst, sources: list[Post], cibles: list[Post], programm
     paires, a_copier, _ = associer(sources, cibles, [
         lambda s, t: abs(s.date - t.date) <= TOLERANCE and s.kinds == t.kinds and s.text == t.text,
         lambda s, t: abs(s.date - t.date) <= TOLERANCE and s.kinds == t.kinds,
+        lambda s, t: abs(s.date - t.date) <= RETARD_SOURCE and s.kinds == t.kinds and meme_contenu(s, t),
         lambda s, t: apres(s, t) and meme_contenu(s, t),
         lambda s, t: apres(s, t) and photos_proches(s, t),                       # legende modifiee
         lambda s, t: apres(s, t) and t.date - s.date <= timedelta(minutes=30),     # texte modifie, sans photo
@@ -470,7 +474,8 @@ async def sync_publies(c, dst, sources: list[Post], cibles: list[Post], programm
             continue
         if any(abs(s.date - p.date) <= TOLERANCE and p.kinds == s.kinds for p in programmes_dst):
             continue                                   # sa copie programmee sort en ce moment meme
-        if any(apres(s, t) and meme_contenu(s, t) for t in cibles):
+        if any((apres(s, t) or abs(s.date - t.date) <= RETARD_SOURCE) and s.kinds == t.kinds and meme_contenu(s, t)
+               for t in cibles):
             continue                                   # deja copie (dernier filet contre les doublons en boucle)
         if envoyes >= MAX_PUBLIES:
             compte("publies_reportes")
