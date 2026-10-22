@@ -44,6 +44,9 @@ TOLERANCE = timedelta(seconds=90)        # un post programme sort a quelques sec
 # Un post programme dont la photo a ete remplacee sort en retard (vu : 4-5 min les 19 et 21/10) alors que
 # sa copie sort a l'heure : meme texte, meme type, a quelques minutes pres dans un sens ou dans l'autre.
 RETARD_SOURCE = timedelta(minutes=15)
+# Un post publie n'est recopie que s'il est frais : rattraper un vieux post le publierait hors contexte
+# (le 22/10, l'album d'un script du 20/10 « jusqu'a minuit » est sorti deux jours apres).
+RATTRAPAGE_MAX = timedelta(hours=1)
 SEUIL_PHOTO = 6                          # bits differents sur 64 (mesure : copie 0-1, photos distinctes >= 13)
 ORPHELIN_MARGE = timedelta(minutes=10)   # on ne retire jamais un post programme qui va sortir
 
@@ -468,7 +471,11 @@ async def sync_publies(c, dst, sources: list[Post], cibles: list[Post], programm
             await agir(f"modifie {s.label()}", lambda s=s, t=t: modifier(c, dst, s, t, None))
 
     envoyes = 0
+    maintenant = datetime.now(timezone.utc)
     for s in a_copier:
+        if maintenant - s.date > RATTRAPAGE_MAX:
+            compte("publies_trop_vieux")
+            continue
         if not s.copiable:
             compte("non_copiables")
             continue
