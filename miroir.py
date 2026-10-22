@@ -265,8 +265,11 @@ async def media_de(c, m):
             grande = max(tailles, key=lambda t: getattr(t, "size", 0) or max(getattr(t, "sizes", [0])))
             if (data := await c.download_media(m, file=bytes, thumb=grande)):
                 miniature = await c.upload_file(data, file_name="miniature.jpg")
+        # Une video sans piste son serait convertie en GIF au renvoi, et un album refuse les GIF
+        # (MediaEmptyError, vu le 20/10 sur les extraits floutes d'un script) : on dit que c'est une video.
         return types.InputMediaUploadedDocument(file=fichier, mime_type=doc.mime_type, attributes=doc.attributes,
                                                 thumb=miniature, spoiler=spoiler,
+                                                nosound_video=True if k == "video" else None,
                                                 video_timestamp=getattr(media, "video_timestamp", None))
     raise NonCopiable(f"type de media non gere ({type(media).__name__})")
 
